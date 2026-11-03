@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SleuthVLM: Do We Really Need Audio-in-Video for Omni Video Understanding?</title>
+  <meta name="description" content="SleuthVLM answers audio-visual questions with a VLM that never hears the audio directly: speech becomes a word-timed transcript, and the VLM sleuths the video with tools. It achieves the best average accuracy on four omni benchmarks and tops the Video-MME-v2 leaderboard.">
+  <meta property="og:title" content="SleuthVLM: Do We Really Need Audio-in-Video for Omni Video Understanding?">
+  <meta property="og:description" content="A VLM that never hears the audio directly beats the omni models that do: 75.0% on four omni benchmarks and 77.8% on Video-MME-v2.">
+  <meta property="og:image" content="static/images/teaser.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <h1 class="title"><span class="brand">SleuthVLM</span>: Do We Really Need <span class="nowrap">Audio-in-Video</span> for Omni Video Understanding?</h1>
+
+    <p class="authors">
+      <span class="author">Peiran Wu<sup>1,2</sup></span>
+      <span class="author">Fangfei Gou<sup>2,3</sup></span>
+      <span class="author">Zhaoxi Mu<sup>2</sup></span>
+      <span class="author">Changhao Zhang<sup>2</sup></span>
+      <span class="author">Yuntao Wang<sup>3</sup></span>
+      <span class="author">Yuanchun Shi<sup>3</sup></span>
+      <span class="author">Weiqiang Wang<sup>2</sup></span>
+      <span class="author">Jian Liu<sup>2,&dagger;</sup></span>
+      <span class="author">Junxiao Shen<sup>1</sup></span>
+    </p>
+    <p class="affiliations">
+      <span><sup>1</sup>University of Bristol</span>
+      <span><sup>2</sup>Ant Group</span>
+      <span><sup>3</sup>Tsinghua University</span>
+    </p>
+    <p class="note"><sup>&dagger;</sup>Corresponding author</p>
+
+    <nav class="links" aria-label="Paper resources">
+      <!-- arXiv: replace this span with <a class="btn" href="https://arxiv.org/abs/XXXX.XXXXX"> once the paper is online -->
+      <span class="btn disabled" aria-disabled="true" title="Coming soon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5zM7 12h10v1.5H7V12zm0 3.5h10V17H7v-1.5zm0-7h5V10H7V8.5z"/></svg>
+        arXiv <small>(coming soon)</small>
+      </span>
+      <a class="btn" href="https://github.com/WPR001/OpenOmniHarness">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
+        Code
+      </a>
+      <a class="btn" href="#bibtex">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 16.6 4 12l4.6-4.6L7.2 6 1.2 12l6 6 1.4-1.4zm6.8 0L20 12l-4.6-4.6L16.8 6l6 6-6 6-1.4-1.4z"/></svg>
+        BibTeX
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="container teaser">
+    <figure>
+      <img src="static/images/teaser.png" width="2400" height="915" alt="Left: average accuracy on four omni benchmarks against model size, with SleuthVLM above every omni model. Right: radar chart over Daily-Omni, WorldSense, OmniVideoBench, LVOmniBench, Video-MME-v2 and their average, where SleuthVLM (Opus 5.5) covers the largest area.">
+      <figcaption><b>SleuthVLM never hears the audio directly, yet beats the omni models that do.</b> (a) Average accuracy on four omni benchmarks against model size; closed-source models are on the right. (b) Accuracy on the four omni benchmarks, Video-MME-v2 and their average; numbers give SleuthVLM (Opus 5.5) and, in parentheses, its difference from the best closed-source omni model.</figcaption>
+    </figure>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value">75.0<span>%</span></div>
+        <div class="stat-label">average accuracy on four omni benchmarks, <b>+2.6</b> over Gemini 3.8 Flash</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">77.8<span>%</span></div>
+        <div class="stat-label">accuracy on Video-MME-v2, <b>best on every metric</b> of the leaderboard</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">+12.4</div>
+        <div class="stat-label">points for an open <b>27B VLM</b> over the best open-source omni model</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container" id="abstract">
+    <h2>Abstract</h2>
+    <p>Omni models answer questions about videos by jointly processing sampled frames and audio in one turn, with progress driven largely by scaling model size and omni training data. We ask whether a model needs to hear the audio directly at all, and present <b>SleuthVLM</b>, an agent harness built on a VLM that never hears the audio directly: speech is transcribed into text, and the VLM sleuths the video on its own. On four omni benchmarks with videos up to 90 minutes, SleuthVLM achieves the best average accuracy, <b>75.0%</b>, 2.6 points above Gemini 3.8 Flash, and it also tops the Video-MME-v2 leaderboard with <b>77.8%</b>; with an open-source 27B VLM, it beats all open-source omni models. We draw three findings: SleuthVLM beats a model that glances; hearing is not the bottleneck, agentic ability is; omni understanding needs better agentic ability, not just more omni data for modality alignment.</p>
+  </section>
+
+  <section class="container" id="findings">
+    <h2>Three findings</h2>
+    <div class="cards">
+      <article class="card">
+        <div class="card-num">1</div>
+        <h3>Searching outperforms passive observation.</h3>
+        <p>Agentic inference improves accuracy by up to 10.3 points, and our simple harness outperforms agents equipped with specialized tools.</p>
+      </article>
+      <article class="card">
+        <div class="card-num">2</div>
+        <h3>Agentic ability matters more than direct audio access.</h3>
+        <p>Even with access to audio, omni models in our harness perform below SleuthVLM with Opus 5.5, which relies on transcripts; omni models also need strong agentic capabilities.</p>
+      </article>
+      <article class="card">
+        <div class="card-num">3</div>
+        <h3>Small agentic models are highly competitive.</h3>
+        <p>An open 27B VLM running on a single GPU matches the performance of closed-source omni models.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="container" id="method">
+    <h2>Method</h2>
+    <p>SleuthVLM answers audio-visual questions with a vision-language model that never hears the audio directly. The audio is transcribed once per video with word-level timestamps, and the VLM uses a small set of tools to search the video and the transcript. The harness specifies only the accessible resources, a brief operating guide and a budget; the VLM decides where to look, how closely to inspect and when to stop, using the transcript as an index into long videos.</p>
+    <figure class="wide">
+      <img src="static/images/method.png" width="2400" height="1176" alt="Overview of SleuthVLM: (a) speech is turned into a word-timed transcript, (b) a VLM gathers evidence with tools in a sandbox, (c) the model answers within a fixed budget.">
+      <figcaption><b>Overview of SleuthVLM.</b> (a) Once per video, an ASR model transcribes the speech and a forced aligner assigns timestamps to each word, preserving non-speech intervals as gaps. (b) A VLM gathers evidence by calling tools over the muted video and transcript in a sandbox. (c) The model answers once it has sufficient evidence, subject to fixed budgets. The illustrated trajectory is a real example from Daily-Omni, answered correctly in 13 turns.</figcaption>
+    </figure>
+    <div class="steps">
+      <div class="step">
+        <h3><span>a</span>Speech becomes a timed transcript</h3>
+        <p>Qwen3-ASR-1.7B transcribes the speech and Qwen3-ForcedAligner-0.6B gives every word its start and end time. Stretches without words are kept as gaps, which point to music and other sounds.</p>
+      </div>
+      <div class="step">
+        <h3><span>b</span>The VLM sleuths the video</h3>
+        <p>In a sandbox with the muted video and the transcript, the VLM searches the words, looks at contact sheets, zooms into frames and crops, and watches short clips.</p>
+        <p class="chips"><code>asr</code><code>vsheet</code><code>vframes</code><code>vcrop</code><code>watch</code><code>view</code></p>
+      </div>
+      <div class="step">
+        <h3><span>c</span>It answers when the evidence decides</h3>
+        <p>The model stops as soon as the evidence settles the question, within a fixed budget of turns, images, clips and time. Any VLM can serve as the reasoning model without changes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="container" id="results">
+    <h2>Results</h2>
+    <p>Without hearing the audio directly, SleuthVLM (Opus 5.5) achieves the best average accuracy on four omni benchmarks, ahead of every closed-source omni model, and its lead grows with the length of the video. With an open 27B model, SleuthVLM leads the best open-source omni model by 12.4 points on average and by 17.3 on LVOmniBench.</p>
+
+    <div class="table-wrap">
+      <table class="results">
+        <caption><b>Comparison with omni models and agents on four omni benchmarks</b> (accuracy, %). A+V: audio as input; V+ASR: speech as a timed transcript, no direct audio. <b>Bold</b>: best; <u>underline</u>: second best; &ndash;: not reported. In parentheses: difference from the best open-source omni model (<span class="d-open">green</span>) or from the best closed-source omni model or Qwen Code agent (<span class="d-closed">red</span>).</caption>
+        <thead>
+          <tr><th>Model</th><th>Input</th><th>Daily-Omni</th><th>WorldSense</th><th>OmniVideoBench</th><th>LVOmniBench</th><th>Avg.</th></tr>
+        </thead>
+        <tbody>
+          <tr class="group"><td colspan="7">Closed-source omni models</td></tr>
+          <tr><td>Gemini 3.8 Flash</td><td>A+V</td><td>84.0</td><td><u>69.6</u></td><td>65.2</td><td>70.7</td><td><u>72.4</u></td></tr>
+          <tr><td>Qwen3.8-Omni-Flash</td><td>A+V</td><td><b>85.1</b></td><td>68.5</td><td>63.4</td><td>63.3</td><td>70.1</td></tr>
+          <tr><td>Qwen3.5-Omni-Plus</td><td>A+V</td><td><b>85.1</b></td><td>63.9</td><td>53.8</td><td>53.2</td><td>64.0</td></tr>
+          <tr><td>Seed 2.0 Lite</td><td>A+V</td><td>81.4</td><td>67.3</td><td>58.5</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr><td>Muse Spark 1.2</td><td>A+V</td><td>79.6</td><td>65.0</td><td>62.2</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr class="group"><td colspan="7">Open-source omni models</td></tr>
+          <tr><td>MiniCPM-o 4.5</td><td>A+V</td><td>80.2</td><td>55.7</td><td>41.1</td><td>34.8</td><td>53.0</td></tr>
+          <tr><td>Qwen3-Omni-30B-A3B</td><td>A+V</td><td>71.9</td><td>54.0</td><td>38.4</td><td>35.8</td><td>50.0</td></tr>
+          <tr><td>video-SALMONN-R3</td><td>A+V</td><td>78.7</td><td class="na">&ndash;</td><td>43.9</td><td>42.9</td><td class="na">&ndash;</td></tr>
+          <tr><td>LongCat-Flash-Omni</td><td>A+V</td><td>82.4</td><td>60.9</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr><td>video-SALMONN 2+ (72B)</td><td>A+V</td><td>79.4</td><td>56.5</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr><td>Nemotron 3 Nano Omni</td><td>A+V</td><td>74.5</td><td>55.2</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr class="group"><td colspan="7">Omni agents</td></tr>
+          <tr><td>OmniReasoner</td><td>A+V</td><td>64.2</td><td>46.7</td><td>34.8</td><td>35.4</td><td>45.3</td></tr>
+          <tr><td>OmniAgent (o3 + Gemini + Qwen)</td><td>A+V</td><td>82.7</td><td>61.2</td><td>59.1</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr><td>OmniAgent (7B)</td><td>A+V</td><td>64.8</td><td>47.2</td><td>37.1</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr><td>Qwen3.8-Omni-Flash (Qwen Code)</td><td>A+V</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td>67.8</td><td><u>73.6</u></td><td class="na">&ndash;</td></tr>
+          <tr><td>Gemini 3.8 Flash (Qwen Code)</td><td>A+V</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td><b>70.1</b></td><td>70.7</td><td class="na">&ndash;</td></tr>
+          <tr class="group"><td colspan="7">VL + ASR agents</td></tr>
+          <tr><td>Qwen3-VL-30B-A3B + TFO</td><td>V+ASR</td><td>68.9</td><td>51.9</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td class="na">&ndash;</td></tr>
+          <tr class="ours"><td>SleuthVLM (Qwen3.8-27B)</td><td>V+ASR</td><td>80.3 <span class="d-open">(&minus;2.1)</span></td><td>62.8 <span class="d-open">(+1.9)</span></td><td>58.3 <span class="d-open">(+14.4)</span></td><td>60.2 <span class="d-open">(+17.3)</span></td><td>65.4 <span class="d-open">(+12.4)</span></td></tr>
+          <tr class="ours"><td>SleuthVLM (Opus 5.5)</td><td>V+ASR</td><td><u>84.4</u> <span class="d-closed">(&minus;0.7)</span></td><td><b>70.1</b> <span class="d-closed">(+0.5)</span></td><td><u>69.9</u> <span class="d-closed">(&minus;0.2)</span></td><td><b>75.5</b> <span class="d-closed">(+1.9)</span></td><td><b>75.0</b> <span class="d-closed">(+2.6)</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="sub">Video-MME-v2</h3>
+    <p>SleuthVLM (Opus 5.5) also sets a new state of the art on Video-MME-v2: with 77.8% average accuracy and a non-linear score of 63.5, it is the best model on every metric of the leaderboard, 6.8 points above Gemini 3.8 Flash in accuracy. Over the four omni benchmarks and Video-MME-v2 together, it achieves the best average, 75.5%.</p>
+    <div class="table-wrap narrow">
+      <table class="results">
+        <caption><b>Average over the four omni benchmarks and Video-MME-v2</b> (accuracy, %). DO: Daily-Omni; WS: WorldSense; OVB: OmniVideoBench; LV: LVOmniBench; VM2: Video-MME-v2. QC: the model run as an agent in the Qwen Code harness.</caption>
+        <thead>
+          <tr><th>Model</th><th>DO</th><th>WS</th><th>OVB</th><th>LV</th><th>VM2</th><th>Avg.</th></tr>
+        </thead>
+        <tbody>
+          <tr class="ours"><td>SleuthVLM (Opus 5.5)</td><td><u>84.4</u></td><td><b>70.1</b></td><td><u>69.9</u></td><td><b>75.5</b></td><td><b>77.8</b></td><td><b>75.5</b></td></tr>
+          <tr><td>Gemini 3.8 Flash</td><td>84.0</td><td><u>69.6</u></td><td>65.2</td><td>70.7</td><td>71.0</td><td><u>72.1</u></td></tr>
+          <tr><td>Qwen3.8-Omni-Flash</td><td><b>85.1</b></td><td>68.5</td><td>63.4</td><td>63.3</td><td>65.0</td><td>69.1</td></tr>
+          <tr><td>Qwen3.5-Omni-Plus</td><td><b>85.1</b></td><td>63.9</td><td>53.8</td><td>53.2</td><td>47.9</td><td>60.8</td></tr>
+          <tr class="sep"><td>Gemini 3.8 Flash (QC)</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td><b>70.1</b></td><td>70.7</td><td><u>72.7</u></td><td class="na">&ndash;</td></tr>
+          <tr><td>Qwen3.8-Omni-Flash (QC)</td><td class="na">&ndash;</td><td class="na">&ndash;</td><td>67.8</td><td><u>73.6</u></td><td>71.3</td><td class="na">&ndash;</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="sub">The longer the video, the larger the lead</h3>
+    <figure class="wide">
+      <img src="static/images/trends.png" width="2400" height="601" loading="lazy" alt="Three charts: the lead of SleuthVLM grows with video length; the number of turns and viewed images grows with video length; each part of the audio input helps.">
+      <figcaption>(a) Lead of SleuthVLM over the best omni model (closed-source for Opus 5.5, open-source for Qwen3.8-27B), with benchmarks ordered by average video length. (b) Turns and images viewed per question by SleuthVLM (Qwen3.8-27B). (c) Accuracy of SleuthVLM (Qwen3.8-27B) as each part of the audio input is added.</figcaption>
+    </figure>
+  </section>
+
+  <section class="container" id="cases">
+    <h2>Case studies</h2>
+    <figure class="wide">
+      <img src="static/images/cases_main.jpg" width="2000" height="1945" loading="lazy" alt="Four trajectories of SleuthVLM with the decisive steps highlighted.">
+      <figcaption>Four trajectories of SleuthVLM with the decisive steps highlighted: (a, b) answered from the transcript and the picture, (c) with the audio caption tool, (d) one question answered in the same harness by Claude Opus 5.5, a VLM, and by Gemini 3.8 Flash, an omni model. Highlighted rows hold the decisive evidence, and the line under a call is the model&rsquo;s decision; <span class="k-asr">green</span>: transcript, <span class="k-pic">red</span>: picture, <span class="k-aud">blue</span>: audio.</figcaption>
+    </figure>
+    <div class="cards cases">
+      <article class="card">
+        <h3>Answering from the timed transcript</h3>
+        <p>In (a), one search of the transcript lands at 20:37 of a 38-minute show, and the model counts six people after viewing only the 20 seconds around it. In (b), the helicopter never appears on screen, but the transcript holds the speaker naming it: &ldquo;flybys with a helicopter. Hear that?&rdquo;</p>
+      </article>
+      <article class="card">
+        <h3>Hearing the music through a tool</h3>
+        <p>In (c), neither the transcript, a single word, nor the frames tell how the music changes. One call to <code>audio_caption</code> on the first 30 s returns a fast opening that turns slow and gentle near 0:08, and the model checks it against the strumming in the frames.</p>
+      </article>
+      <article class="card">
+        <h3>A VLM against an omni model</h3>
+        <p>In (d), Opus 5.5 binds a viewer&rsquo;s first comment at 05:19 of an 83-minute stream to the sentence spoken at that moment in five turns. Gemini 3.8 Flash finds the same evidence, loses it, and answers wrongly after 27 turns and 21 times the tokens.</p>
+      </article>
+    </div>
+
+    <h3 class="sub">Step-by-step trajectories</h3>
+    <div class="tabs" role="tablist" aria-label="Detailed trajectories">
+      <button role="tab" aria-selected="true" aria-controls="case-panel" data-src="static/images/case_1.jpg" data-caption="Answered from the timed transcript. (a) A count at the moment a phrase is said in a 38-minute video. (b) A sound that never appears on screen and is named by the speaker.">Transcript I</button>
+      <button role="tab" aria-selected="false" aria-controls="case-panel" data-src="static/images/case_2.jpg" data-caption="Answered from the timed transcript. (a) A gap in the speech that times the music. (b) Lyrics that carry the emotion of a song.">Transcript II</button>
+      <button role="tab" aria-selected="false" aria-controls="case-panel" data-src="static/images/case_3.jpg" data-caption="Answered from the timed transcript. (a) A gap that rules out the spoken options. (b) Word times that reveal one sustained voice.">Transcript III</button>
+      <button role="tab" aria-selected="false" aria-controls="case-panel" data-src="static/images/case_4.jpg" data-caption="With the audio_caption tool. (a) How the music changes. (b) Which instrument drives the rhythm, settled by two differently worded calls.">Audio caption I</button>
+      <button role="tab" aria-selected="false" aria-controls="case-panel" data-src="static/images/case_5.jpg" data-caption="With the audio_caption tool. (a) A non-speech sound that explains the plot. (b) The start of the first music in a 41-minute video, located by the transcript gaps and confirmed by the tool.">Audio caption II</button>
+      <button role="tab" aria-selected="false" aria-controls="case-panel" data-src="static/images/case_6.jpg" data-caption="The same question in the same harness with two reasoning models. (a) SleuthVLM (Opus 5.5), a VLM, binds the comment to the sentence spoken at that moment in five turns. (b) SleuthVLM (Gemini 3.8 Flash), an omni model, finds the same evidence and loses it over 27 turns.">VLM vs. omni model</button>
+    </div>
+    <figure class="wide case-panel" id="case-panel" role="tabpanel">
+      <a href="static/images/case_1.jpg" target="_blank" rel="noopener"><img src="static/images/case_1.jpg" width="1800" height="1796" loading="lazy" alt="Step-by-step trajectory of SleuthVLM."></a>
+      <figcaption>Answered from the timed transcript. (a) A count at the moment a phrase is said in a 38-minute video. (b) A sound that never appears on screen and is named by the speaker.</figcaption>
+    </figure>
+  </section>
+
+  <section class="container" id="bibtex">
+    <h2>BibTeX</h2>
+    <div class="bib">
+      <button class="copy" type="button" aria-label="Copy BibTeX">Copy</button>
+<pre><code id="bibtex-code">@article{wu2026sleuthvlm,
+  title   = {SleuthVLM: Do We Really Need Audio-in-Video for Omni Video Understanding?},
+  author  = {Wu, Peiran and Gou, Fangfei and Mu, Zhaoxi and Zhang, Changhao and
+             Wang, Yuntao and Shi, Yuanchun and Wang, Weiqiang and Liu, Jian and
+             Shen, Junxiao},
+  journal = {arXiv preprint},
+  year    = {2026}
+}</code></pre>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>University of Bristol &middot; Ant Group &middot; Tsinghua University</p>
+  </div>
+</footer>
+
+<script src="static/js/main.js"></script>
+</body>
+</html>
