@@ -1,0 +1,14 @@
+# Agent environment (Python 3.12): Qwen3.8-27B with vLLM or transformers, the sandbox commands, the benchmark loaders.
+# vllm 0.32.0 installs torch 2.13 (CUDA 13.0 build). System requirement: ffmpeg / ffprobe on PATH.
+#   conda create -n omniharness python=3.12 -y && conda activate omniharness && pip install -r requirements.txt
+vllm==0.32.0
+transformers==5.19.0
+torch==2.13.0
+torchvision==0.28.0
+torchcodec==0.17.0
+av==19.0.2
+pillow==13.0.0
+numpy==2.3.5
+opencv-python-headless==5.0.0.93
+pandas==3.1.0
+pyarrow==26.0.0

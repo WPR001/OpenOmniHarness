@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "view is a tool, not a shell command: call the view tool directly (not through bash)." >&2
+exit 2

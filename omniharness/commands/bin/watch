@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "watch is a tool, not a shell command: call the watch tool directly (not through bash)." >&2
+exit 2

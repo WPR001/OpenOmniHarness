@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "answer is a tool, not a shell command: call the answer tool directly (not through bash)." >&2
+exit 2
