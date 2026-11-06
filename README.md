@@ -1,15 +1,81 @@
-# OpenOmniHarness
+<h1 align="center">OpenOmniHarness</h1>
 
-The agentic harness of **SleuthVLM** ([paper](https://arxiv.org/abs/2611.06083), [project page](https://wpr001.github.io/sleuthVLM/)).
+<h3 align="center">An Open Agentic Harness for Omni Video Understanding</h3>
 
-- [x] [Offline Omni Harness](#offline-omni-harness): Qwen3.8-27B on Daily-Omni, WorldSense, OmniVideoBench,
-  LVOmniBench and single videos
-- [ ] [Online Omni Harness](#online-omni-harness): coming soon
+<p align="center">
+  <a href="https://wpr001.github.io/sleuthVLM/"><img src="https://img.shields.io/badge/Project-Homepage-2653c1.svg?style=for-the-badge" height="25" alt="Project homepage"></a>
+  <a href="https://arxiv.org/abs/2611.06083"><img src="https://img.shields.io/badge/arXiv-2611.06083-b31b1b.svg?style=for-the-badge" height="25" alt="arXiv:2611.06083"></a>
+  <a href="https://wpr001.github.io/sleuthVLM/Do_We_Really_Need_Audio_in_Video_for_Omni_Video_Understanding.pdf"><img src="https://img.shields.io/badge/Paper-PDF-e8710a.svg?style=for-the-badge" height="25" alt="Paper PDF"></a>
+  <a href="https://wpr001.github.io/sleuthVLM/#demo"><img src="https://img.shields.io/badge/Demo-Video-8a2f6f.svg?style=for-the-badge" height="25" alt="Demo video"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-2e7d32.svg?style=for-the-badge" height="25" alt="MIT License"></a>
+</p>
 
-## Offline Omni Harness
+<p align="center">
+  <a href="https://wpr001.github.io/sleuthVLM/">
+    <img src="assets/teaser.png" alt="Average accuracy on four omni benchmarks against model size, and accuracy on each benchmark: SleuthVLM, the offline baseline of this harness, sets a new state of the art without hearing the audio directly" width="100%">
+  </a>
+</p>
 
-Qwen3.8-27B answers questions about a video by working in a sandbox with tools and shell commands. The speech
-reaches it as a timestamped transcript computed beforehand with Qwen3-ASR and a forced aligner.
+<p align="center"><em>
+Hand a model a video, a transcript and a shell, and let it sleuth: search what was said, look where it matters,<br>
+zoom in, replay a moment, and answer once the evidence decides.
+</em></p>
+
+<a id="highlights"></a>
+## ✨ Highlights
+
+- **Training-free.** Bring a VLM that can call tools, and it is ready to go. Nothing is fine-tuned.
+- **Free-form.** The model gets a sandbox, a short guide and a budget, then makes its own calls: where to look, how
+  closely, and when it has seen enough.
+- **Audio as text.** Speech is transcribed once with word-level timestamps, and the transcript becomes the model's
+  map of videos up to 90 minutes long.
+- **Plug and play.** Tools, sandbox commands and rules are switched on by name, so a new idea is one flag away.
+- **A strong baseline to beat.** [SleuthVLM](https://wpr001.github.io/sleuthVLM/) runs Qwen3.8-27B on a single GPU
+  and is comparable to open-source omni models on short videos and better on long ones. With Claude Opus 5.5, the
+  same harness leads every closed-source omni model on average.
+
+<a id="roadmap"></a>
+## 🗺️ Roadmap
+
+- [x] **Offline Omni Harness:** recorded videos with transcripts prepared ahead of time, and the SleuthVLM baseline
+  on Daily-Omni, WorldSense, OmniVideoBench, LVOmniBench and your own videos
+- [ ] **[Online Omni Harness](#online-omni-harness):** coming soon
+
+<a id="contents"></a>
+## 🗂️ Contents
+
+- [How It Works](#how-it-works)
+- [SleuthVLM: The Offline Baseline](#sleuthvlm)
+  - [Results](#results) · [See It at Work](#see-it-at-work)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Evaluation](#evaluation)
+  - [Prepare the Data](#prepare-the-data) · [Run](#run) · [Options](#options) · [Outputs](#outputs)
+- [Extend the Harness](#extend-the-harness)
+  - [Add a Tool](#add-a-tool) · [Add a Sandbox Command](#add-a-sandbox-command) · [Add a Rule](#add-a-rule)
+- [Contributing](#contributing)
+- [Repository Layout](#repository-layout) · [Online Omni Harness](#online-omni-harness) · [Citation](#citation)
+
+<a id="how-it-works"></a>
+## 🔍 How It Works
+
+The Offline Omni Harness works on recorded videos. It turns the audio into text once, then hands the case to the
+model, which works it like a detective: it reads the transcript, picks the moments worth a closer look, and keeps
+digging until the evidence settles the question.
+
+<p align="center">
+  <img src="assets/method.png" alt="Overview: (a) speech becomes a word-timed transcript, (b) a VLM gathers evidence with tools in a sandbox, (c) it answers within a fixed budget" width="100%">
+</p>
+
+### Step 1 · Speech becomes a timed transcript
+
+Qwen3-ASR-1.7B transcribes the speech, and Qwen3-ForcedAligner-0.6B stamps every word with its start and end time.
+Quiet stretches stay in the transcript as gaps, a handy hint that music or other sounds play there.
+
+### Step 2 · The model sleuths the video
+
+Each question gets its own sandbox with the muted video, the question and the transcript. The model works through
+four tools:
 
 | tool | what it does |
 |---|---|
@@ -18,7 +84,9 @@ reaches it as a timestamped transcript computed beforehand with Qwen3-ASR and a 
 | `watch` | shows a segment of up to 30 s as video |
 | `answer` | gives the option letter and ends the question |
 
-| command (through `bash`) | what it does |
+Inside `bash`, a handful of commands cover the video and the transcript:
+
+| command | what it does |
 |---|---|
 | `vprobe` | duration, size and frame rate |
 | `vsheet T0 T1 --every S` | contact sheet of time-stamped frames |
@@ -26,37 +94,91 @@ reaches it as a timestamped transcript computed beforehand with Qwen3-ASR and a 
 | `vcrop --t T --box x0,y0,x1,y1` | crop of a native-resolution frame |
 | `asr window / search / words / gaps` | transcript lines, search, word times, stretches without speech |
 
-### Layout
+The tools are shortcuts, not limits. When the model wants something they do not offer, it writes the code itself,
+for example to crop and enlarge a region or to tile frames into its own sheet.
 
-```text
-omniharness/
-  config.py        paths; AgentConfig (budgets, sampling, tools, rules)
-  agent/           loop.py (the agent loop), prompts.py (system prompt and fixed messages)
-  tools/           bash.py, view.py, watch.py, answer.py; registry and ToolBox in __init__.py
-  sandbox/         sandbox.py: per-question work dir and bash runner
-  commands/        video.py (vprobe, vsheet, vframes, vcrop), asr.py; bin/ wrappers
-  rules/           guard.py (built-in command guard), extra.py (optional rules)
-  media/           video.py (decoding, contact sheets), transcript.py (transcript store)
-  backends/        vllm_backend.py, hf.py, render.py (Qwen3.8 chat template)
-  benchmarks/      daily_omni.py, worldsense.py, omnivideobench.py, lvomnibench.py
-asr/               build.py (transcripts), slurm/build_asr.sbatch
-infer/             run_single.py, run_bench.py, score.py, slurm/run_bench.sbatch
-scripts/           setup_envs.sh, download_models.sh
-```
+### Step 3 · It answers when the evidence decides
 
-### Setup
+The model answers as soon as the evidence settles the question. Every question gets the same budget: 50 turns,
+30 viewed images, 10 watch clips and 30 minutes.
+
+<a id="sleuthvlm"></a>
+## 🏆 SleuthVLM: The Offline Baseline
+
+SleuthVLM is the first baseline built on this harness and the method of our paper
+*SleuthVLM: Do We Really Need Audio-in-Video for Omni Video Understanding?*
+([arXiv](https://arxiv.org/abs/2611.06083) · [PDF](https://wpr001.github.io/sleuthVLM/Do_We_Really_Need_Audio_in_Video_for_Omni_Video_Understanding.pdf) · [project page](https://wpr001.github.io/sleuthVLM/)).
+Its reasoning model never hears the audio directly. It reads the speech as a timed transcript and searches the video
+on its own, without a predefined workflow.
+
+<a id="results"></a>
+### Results
+
+Accuracy (%) on four omni benchmarks. A+V: audio as input; V+ASR: speech as a timed transcript; medium: medium
+reasoning effort, the default of this release.
+
+| Model | Input | Daily-Omni | WorldSense | OmniVideoBench | LVOmniBench | Avg. |
+|---|---|:---:|:---:|:---:|:---:|:---:|
+| Gemini 3.8 Flash | A+V | 84.0 | 69.6 | 65.2 | 70.7 | 72.4 |
+| Qwen3.8-Omni-Flash | A+V | **85.1** | 68.5 | 63.4 | 63.3 | 70.1 |
+| OmniVideo-R1 | A+V | 82.8 | 65.8 | 44.8 | – | – |
+| Qwen3-Omni-30B-A3B | A+V | 71.9 | 54.0 | 38.4 | 35.8 | 50.0 |
+| **SleuthVLM** (Qwen3.8-27B, medium) · this release | V+ASR | 80.3 | 62.8 | 58.3 | 60.2 | 65.4 |
+| **SleuthVLM** (Claude Opus 5.5) | V+ASR | 84.4 | **70.1** | **69.9** | **75.5** | **75.0** |
+
+The Qwen3.8-27B setting runs out of the box with this release on a single GPU. With Claude Opus 5.5, SleuthVLM also
+tops the Video-MME-v2 leaderboard with 77.8%. Full leaderboards, ablations and more trajectories are in the paper
+and on the [project page](https://wpr001.github.io/sleuthVLM/#results).
+
+<a id="see-it-at-work"></a>
+### See It at Work
+
+<p align="center">
+  <a href="https://wpr001.github.io/sleuthVLM/#demo">
+    <img src="assets/demo_poster.jpg" alt="Demo video: SleuthVLM answers two LVOmniBench questions step by step" width="70%">
+  </a>
+  <br>
+  <em>SleuthVLM answers two questions on 36- and 59-minute videos, replayed from its logged trajectories. Click to watch.</em>
+</p>
+
+<details>
+<summary><b>Four example trajectories</b></summary>
+<p align="center">
+  <img src="assets/cases_main.jpg" alt="Four trajectories of SleuthVLM with the decisive steps highlighted" width="100%">
+</p>
+
+(a, b) Answered from the transcript and the picture; (c) with an audio caption tool; (d) one question answered in
+the same harness by a VLM and by an omni model. Highlighted rows hold the decisive evidence; green: transcript,
+red: picture, blue: audio.
+</details>
+
+<a id="installation"></a>
+## 🛠️ Installation
+
+### 1. Create the environments
+
+Two conda environments keep the agent and the transcription apart:
 
 ```bash
+git clone https://github.com/WPR001/OpenOmniHarness.git
+cd OpenOmniHarness
 conda create -n omniharness python=3.12 -y
 conda run -n omniharness pip install -r requirements.txt            # agent
 conda create -n omniharness-asr python=3.12 -y
 conda run -n omniharness-asr pip install -r requirements-asr.txt    # transcripts
-OH_MODEL_DIR=models bash scripts/download_models.sh                  # Qwen3.8-27B, Qwen3-ASR-1.7B, Qwen3-ForcedAligner-0.6B
 ```
 
-`ffmpeg` and `ffprobe` are used for video decoding.
+You'll also need `ffmpeg` and `ffprobe` for video decoding.
 
-Paths are set with environment variables:
+### 2. Download the models
+
+```bash
+OH_MODEL_DIR=models bash scripts/download_models.sh   # Qwen3.8-27B, Qwen3-ASR-1.7B, Qwen3-ForcedAligner-0.6B
+```
+
+### 3. Set the paths
+
+Everything else is configured with environment variables:
 
 | variable | default | |
 |---|---|---|
@@ -67,7 +189,30 @@ Paths are set with environment variables:
 | `OH_MUTED_CACHE` | `./cache/muted` | videos without audio, made on first use |
 | `OH_SCRATCH` | `/tmp/omniharness_sandbox` | per-question sandboxes |
 
-Benchmark data under `OMNI_BENCH_ROOT`:
+<a id="quick-start"></a>
+## 🚀 Quick Start
+
+Got a video and a question? Two commands, run from the repository root:
+
+```bash
+# 1. transcript (omniharness-asr env)
+python asr/build.py --videos <(echo /path/clip.mp4)
+# 2. answer (omniharness env)
+python infer/run_single.py --video /path/clip.mp4 \
+    --question "What does the host say right after the applause?" \
+    --options "A. Thank you" "B. Wow, what a crowd" "C. Let's begin" "D. Nothing" \
+    --out outputs/single/clip.json
+```
+
+You'll get the answer along with the full record of every tool call the model made.
+
+<a id="evaluation"></a>
+## 📊 Evaluation
+
+<a id="prepare-the-data"></a>
+### Prepare the Data
+
+Place the four benchmarks under `OMNI_BENCH_ROOT` like this:
 
 ```text
 Daily-Omni/qa.json             Daily-Omni/Videos/<vid>/<vid>_video.mp4
@@ -76,26 +221,11 @@ OmniVideoBench/data.parquet    OmniVideoBench/videos/<name>.mp4
 LVOmniBench/data.json          LVOmniBench/videos/<video_id>.mp4
 ```
 
-### Usage
+<a id="run"></a>
+### Run
 
-Run from the repository root. The Slurm scripts take one GPU per array task; `PYTHON` sets the environment's python
-and `EXTRA` passes more flags.
-
-#### One video
-
-```bash
-# transcript (omniharness-asr env)
-python asr/build.py --videos <(echo /path/clip.mp4)
-# answer (omniharness env)
-python infer/run_single.py --video /path/clip.mp4 \
-    --question "What does the host say right after the applause?" \
-    --options "A. Thank you" "B. Wow, what a crowd" "C. Let's begin" "D. Nothing" \
-    --out outputs/single/clip.json
-```
-
-It prints the answer and the full record of every tool call.
-
-#### Benchmarks
+Run everything from the repository root. The Slurm scripts take one GPU per array task; `PYTHON` points to the
+environment's python, and `EXTRA` passes extra flags.
 
 ```bash
 # 1. transcripts for the four benchmarks (4 GPUs)
@@ -114,9 +244,11 @@ python infer/run_bench.py --bench lvomnibench --num-shards 4 --shard-id 0
 python infer/score.py --bench lvomnibench --run-dir outputs/lvomnibench/agent_vllm
 ```
 
-Every question has the same budget: 50 turns, 30 viewed images, 10 watch clips and 30 minutes.
-Each finished question is written at once, and the same command resumes an unfinished run. The log's first line
-per benchmark gives the number of questions with transcripts.
+Results are saved question by question, so if a run stops, launch the same command again and it picks up where it
+left off. The first log line for each benchmark tells you how many questions have transcripts ready.
+
+<a id="options"></a>
+### Options
 
 | flag | default | |
 |---|---|---|
@@ -128,17 +260,24 @@ per benchmark gives the number of questions with transcripts.
 | `--tag`, `--out` | | run directory name |
 | `--keep-sandbox` | off | keep the per-question directories |
 
-Outputs in `outputs/<bench>/agent_<backend><tag>/`:
-- `results_shard<i>of<n>.jsonl`: one record per question (prediction, stop reason, every turn with its tool calls
-  and outputs, images viewed, seconds);
+<a id="outputs"></a>
+### Outputs
+
+Each run writes to `outputs/<bench>/agent_<backend><tag>/`:
+
+- `results_shard<i>of<n>.jsonl`: one record per question, with the prediction, the stop reason, every turn with its
+  tool calls and outputs, the images viewed and the time spent;
 - `config_shard<i>of<n>.json`: the run settings;
 - `scores.json`: accuracy overall and per benchmark dimension, with tool and stop statistics.
 
-### Extending
+<a id="extend-the-harness"></a>
+## 🧩 Extend the Harness
 
-New tools and rules are switched on by name, and the default setting stays as it is.
+Tools and rules are switched on by name, so you can try a new idea with one flag while the default setting stays
+exactly as it is.
 
-#### Add a tool
+<a id="add-a-tool"></a>
+### Add a Tool
 
 Add a module to `omniharness/tools/`, import it in `omniharness/tools/__init__.py`, and offer it with `--tools`:
 
@@ -161,9 +300,11 @@ def ocr(box, args):
 python infer/run_bench.py --bench daily_omni --tools bash view watch answer ocr
 ```
 
-`prompt` is added to the system prompt when the tool is offered; `ToolInputError` shows the model an error message.
+`prompt` joins the system prompt whenever the tool is offered, and `ToolInputError` passes an error message back to
+the model.
 
-#### Add a sandbox command
+<a id="add-a-sandbox-command"></a>
+### Add a Sandbox Command
 
 Register an argparse function in `omniharness/commands/`, add its wrapper, and list it in the system prompt
 (`omniharness/agent/prompts.py`):
@@ -179,10 +320,11 @@ def vdiff(argv=None):
 cp omniharness/commands/bin/vsheet omniharness/commands/bin/vdiff
 ```
 
-#### Add a rule
+<a id="add-a-rule"></a>
+### Add a Rule
 
-A rule can add a line to the prompt's Rules section, refuse bash commands by pattern, and refuse tool calls
-(including `answer`). Register it in `omniharness/rules/extra.py` and switch it on with `--rules`:
+A rule can add a line to the prompt's Rules section, refuse bash commands by pattern, and refuse tool calls,
+including `answer`. Register it in `omniharness/rules/extra.py` and switch it on with `--rules`:
 
 ```python
 register(Rule(
@@ -202,20 +344,74 @@ register(Rule(
 python infer/run_bench.py --bench daily_omni --rules look_before_answer no_python
 ```
 
-Refused commands go to each record's `denied`, refused tool calls to `refused`.
+Refused commands are listed in each record's `denied`, and refused tool calls in `refused`.
 
-#### More
+### More Entry Points
 
 - Prompts: `omniharness/agent/prompts.py`.
 - Sampling and generation settings: `AgentConfig` in `omniharness/config.py`, flags in `infer/common.py`.
 - A new benchmark: a `Benchmark` subclass in `omniharness/benchmarks/` whose `load()` returns `Sample`s, added to
   `BENCHMARKS`.
 
-## Online Omni Harness
+<a id="contributing"></a>
+## 🤝 Contributing
 
-Coming soon.
+OpenOmniHarness is built to grow with the community, and SleuthVLM is just its first offline baseline. If you have a
+tool or a rule that helps a model understand videos, we'd love to see it!
 
-## Citation
+### What We'd Love to See
+
+- **Tools:** audio captioning, sound event detection, speaker diarization, music analysis, OCR, object tracking,
+  shot detection, or retrieval over long videos.
+- **Rules:** checks that make the agent look before it answers, verify a candidate answer, or balance search and
+  inspection within the budget.
+- **Benchmarks and backends:** new omni video benchmarks, with full results of the default setting on them, and
+  other reasoning models, with full results on the four benchmarks.
+
+### What Every Pull Request Includes
+
+Every pull request comes with **a full benchmark comparison**, so everyone can see what the new piece brings:
+
+1. **A name to switch it on.** Register the tool or rule so that `--tools` or `--rules` turns it on (see
+   [Extend the Harness](#extend-the-harness)).
+2. **All four benchmarks.** Run the complete Daily-Omni, WorldSense, OmniVideoBench and LVOmniBench with the same
+   reasoning model and budget as the default setting.
+3. **A side-by-side comparison.** Report the default setting and yours together: accuracy on each benchmark and the
+   average, plus the `scores.json` of every run.
+4. **A moment where it shines.** Add one trajectory where your tool or rule decides the answer, and a line for it in
+   the tables above.
+
+Have an idea or a question first? Open an [issue](https://github.com/WPR001/OpenOmniHarness/issues) and let's talk.
+
+<a id="repository-layout"></a>
+## 📁 Repository Layout
+
+```text
+omniharness/
+  config.py        paths; AgentConfig (budgets, sampling, tools, rules)
+  agent/           loop.py (the agent loop), prompts.py (system prompt and fixed messages)
+  tools/           bash.py, view.py, watch.py, answer.py; registry and ToolBox in __init__.py
+  sandbox/         sandbox.py: per-question work dir and bash runner
+  commands/        video.py (vprobe, vsheet, vframes, vcrop), asr.py; bin/ wrappers
+  rules/           guard.py (built-in command guard), extra.py (optional rules)
+  media/           video.py (decoding, contact sheets), transcript.py (transcript store)
+  backends/        vllm_backend.py, hf.py, render.py (Qwen3.8 chat template)
+  benchmarks/      daily_omni.py, worldsense.py, omnivideobench.py, lvomnibench.py
+asr/               build.py (transcripts), slurm/build_asr.sbatch
+infer/             run_single.py, run_bench.py, score.py, slurm/run_bench.sbatch
+scripts/           setup_envs.sh, download_models.sh
+assets/            figures for this README
+```
+
+<a id="online-omni-harness"></a>
+## 📡 Online Omni Harness
+
+The Online Omni Harness is on its way. Stay tuned!
+
+<a id="citation"></a>
+## 📝 Citation
+
+If OpenOmniHarness or SleuthVLM helps your research, please cite:
 
 ```bibtex
 @misc{wu2026sleuthvlmreallyneedaudioinvideo,
@@ -229,6 +425,23 @@ Coming soon.
 }
 ```
 
-## License
+<a id="misc"></a>
+## 📌 Misc
 
-MIT
+### Star History
+
+<p>
+  <a href="https://www.star-history.com/#WPR001/OpenOmniHarness&Date">
+    <img src="https://api.star-history.com/svg?repos=WPR001/OpenOmniHarness&type=Date" width="600" alt="Star history chart for WPR001/OpenOmniHarness">
+  </a>
+</p>
+
+### Acknowledgements
+
+Transcripts are built with Qwen3-ASR and Qwen3-ForcedAligner, and the reasoning model is served with
+[vLLM](https://github.com/vllm-project/vllm). We evaluate on Daily-Omni, WorldSense, OmniVideoBench and
+LVOmniBench. Many thanks to their authors for sharing them!
+
+### License
+
+OpenOmniHarness is released under the [MIT License](LICENSE).
