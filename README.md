@@ -27,12 +27,22 @@ zoom in, replay a moment, and answer once the evidence decides.
 - **Training-free.** Bring a VLM that can call tools, and it is ready to go. Nothing is fine-tuned.
 - **Free-form.** The model gets a sandbox, a short guide and a budget, then makes its own calls: where to look, how
   closely, and when it has seen enough.
-- **Audio as text.** Speech is transcribed once with word-level timestamps, and the transcript becomes the model's
-  map of videos up to 90 minutes long.
+- **Audio as text, with optional direct listening.** The default visual mode uses word-timed transcripts.
+  `--agent-mode omni` also lets an audio-capable model request short raw-audio segments with `listen_audio`.
+- **Official Gemini backend.** Omni mode uses Google's `google-genai` SDK and the official Gemini API.
+  Credentials come from the `GEMINI_API_KEY` environment variable.
 - **Plug and play.** Tools, sandbox commands and rules are switched on by name, so a new idea is one flag away.
 - **A strong baseline to beat.** [SleuthVLM](https://wpr001.github.io/sleuthVLM/) runs Qwen3.8-27B on a single GPU
   and is comparable to open-source omni models on short videos and better on long ones. With Claude Opus 5.5, the
   same harness leads every closed-source omni model on average.
+
+<a id="supported-models"></a>
+## Supported Models
+
+| Model | Deployment | Agent modes |
+|---|---|---|
+| Qwen3.8-27B | Local, via vLLM or Hugging Face Transformers | `visual` — video frames + ASR |
+| Gemini | Official Gemini API | `visual` — video frames + ASR; `omni` — adds on-demand audio listening |
 
 <a id="roadmap"></a>
 ## 🗺️ Roadmap
@@ -44,11 +54,12 @@ zoom in, replay a moment, and answer once the evidence decides.
 <a id="contents"></a>
 ## 🗂️ Contents
 
+- [Supported Models](#supported-models)
 - [How It Works](#how-it-works)
 - [SleuthVLM: The Offline Baseline](#sleuthvlm)
   - [Results](#results) · [See It at Work](#see-it-at-work)
 - [Installation](#installation)
-- [Quick Start](#quick-start)
+- [Quick Start](#quick-start) · [Omni Agentic Mode](#omni-agentic-mode)
 - [Evaluation](#evaluation)
   - [Prepare the Data](#prepare-the-data) · [Run](#run) · [Options](#options) · [Outputs](#outputs)
 - [Extend the Harness](#extend-the-harness)
@@ -59,9 +70,9 @@ zoom in, replay a moment, and answer once the evidence decides.
 <a id="how-it-works"></a>
 ## 🔍 How It Works
 
-The Offline Omni Harness works on recorded videos. It turns the audio into text once, then hands the case to the
-model, which works it like a detective: it reads the transcript, picks the moments worth a closer look, and keeps
-digging until the evidence settles the question.
+The Offline Omni Harness works on recorded videos. In the default visual mode, it transcribes speech once, then
+lets the model search the transcript and inspect relevant video moments. Omni mode adds a `listen_audio` tool:
+the model selects a time interval, receives the actual audio from that interval, and continues the same conversation.
 
 <p align="center">
   <img src="assets/method.png" alt="Overview: (a) speech becomes a word-timed transcript, (b) a VLM gathers evidence with tools in a sandbox, (c) it answers within a fixed budget" width="100%">
@@ -70,12 +81,13 @@ digging until the evidence settles the question.
 ### Step 1 · Speech becomes a timed transcript
 
 Qwen3-ASR-1.7B transcribes the speech, and Qwen3-ForcedAligner-0.6B stamps every word with its start and end time.
-Quiet stretches stay in the transcript as gaps, a handy hint that music or other sounds play there.
+Stretches without recognized words stay in the transcript as gaps. They may contain non-speech sounds or missed
+speech; an ASR gap does not establish silence or the presence of music.
 
 ### Step 2 · The model sleuths the video
 
 Each question gets its own sandbox with the muted video, the question and the transcript. The model works through
-four tools:
+the four default tools:
 
 | tool | what it does |
 |---|---|
@@ -83,6 +95,7 @@ four tools:
 | `view` | shows up to 4 image files (contact sheets, frames, crops) |
 | `watch` | shows a segment of up to 30 s as video |
 | `answer` | gives the option letter and ends the question |
+| `listen_audio` (omni mode) | returns original audio from an absolute time interval; default budget: 4 calls, 30 s each |
 
 Inside `bash`, a handful of commands cover the video and the transcript:
 
@@ -94,8 +107,9 @@ Inside `bash`, a handful of commands cover the video and the transcript:
 | `vcrop --t T --box x0,y0,x1,y1` | crop of a native-resolution frame |
 | `asr window / search / words / gaps` | transcript lines, search, word times, stretches without speech |
 
-The tools are shortcuts, not limits. When the model wants something they do not offer, it writes the code itself,
-for example to crop and enlarge a region or to tile frames into its own sheet.
+The model can also write code within the sandbox, for example to crop and enlarge a region or to tile frames into
+its own sheet. Original audio stays outside the sandbox; `listen_audio` extracts only the requested interval under
+the configured listening budget.
 
 ### Step 3 · It answers when the evidence decides
 
@@ -157,7 +171,7 @@ red: picture, blue: audio.
 
 ### 1. Create the environments
 
-Two conda environments keep the agent and the transcription apart:
+For local visual inference, two conda environments keep the agent and the transcription apart:
 
 ```bash
 git clone https://github.com/WPR001/OpenOmniHarness.git
@@ -168,7 +182,18 @@ conda create -n omniharness-asr python=3.12 -y
 conda run -n omniharness-asr pip install -r requirements-asr.txt    # transcripts
 ```
 
-You'll also need `ffmpeg` and `ffprobe` for video decoding.
+You'll also need `ffmpeg` and `ffprobe` on `PATH` for video decoding and audio extraction.
+
+For API-only Gemini inference, install this CPU environment:
+
+```bash
+python3.12 -m venv .venv-omni
+. .venv-omni/bin/activate
+python -m pip install -r requirements-omni.txt
+```
+
+Reuse existing ASR files, or prepare them separately with the ASR environment. The API environment does not run ASR.
+Local reasoning-model downloads in step 2 are needed only for the local backends.
 
 ### 2. Download the models
 
@@ -188,6 +213,7 @@ Everything else is configured with environment variables:
 | `OH_ASR_CACHE` | `./cache/asr` | transcripts |
 | `OH_MUTED_CACHE` | `./cache/muted` | videos without audio, made on first use |
 | `OH_SCRATCH` | `/tmp/omniharness_sandbox` | per-question sandboxes |
+| `GEMINI_API_KEY` | unset | official Gemini Developer API credential, provided by your environment |
 
 <a id="quick-start"></a>
 ## 🚀 Quick Start
@@ -205,6 +231,45 @@ python infer/run_single.py --video /path/clip.mp4 \
 ```
 
 You'll get the answer along with the full record of every tool call the model made.
+
+<a id="omni-agentic-mode"></a>
+### Omni Agentic Mode
+
+Set `GEMINI_API_KEY` securely in your shell or secret manager, then use the official Gemini backend:
+
+```bash
+python infer/run_single.py --agent-mode omni --model gemini-3.8-flash \
+    --video /path/clip.mp4 \
+    --question "What sound follows the door closing?" \
+    --options "A. A dog barking" "B. Applause" "C. A phone ringing" "D. Running water" \
+    --max-listen 4 --listen-seconds 30 \
+    --out outputs/single/clip_omni.json
+```
+
+Omni mode selects `--backend gemini` and adds `listen_audio` to the default tools. The model can read ASR, inspect
+frames, request an audio interval, and continue reasoning; no audio is sent until it requests a listen. Explicit
+`--tools` replaces the tool list, so include `listen_audio` when selecting tools manually. `--max-listen 0` disables it.
+
+```bash
+# Official Gemini with raw audio available on demand
+python infer/run_bench.py --bench lvomnibench --agent-mode omni \
+    --model gemini-3.8-flash --api-workers 4 --batch-size 4 \
+    --out outputs/lvomnibench/gemini_omni
+
+# Same official model with V + ASR only
+python infer/run_bench.py --bench lvomnibench --agent-mode visual --backend gemini \
+    --model gemini-3.8-flash --api-workers 4 --batch-size 4 \
+    --out outputs/lvomnibench/gemini_visual
+```
+
+The API adapter connects directly to Google's Gemini Developer API. The local `hf` and `vllm` backends support
+visual inference; Omni mode currently uses the official Gemini adapter. Add `--gemini-thinking-level high` to
+set Gemini's thinking level, or omit it to use the model default.
+
+`listen_audio(t0, t1)` uses absolute media timestamps in seconds, `mm:ss`, or `hh:mm:ss`. Each extracted segment
+is returned as mono 16 kHz PCM WAV with its original time offset. `--max-listen` controls the per-question call
+budget; `--listen-seconds` controls each segment's maximum duration. Audio decoding consumes one call, including
+failed decoding attempts; invalid timestamps and missing audio tracks return an error without consuming a call.
 
 <a id="evaluation"></a>
 ## 📊 Evaluation
@@ -252,9 +317,14 @@ left off. The first log line for each benchmark tells you how many questions hav
 
 | flag | default | |
 |---|---|---|
-| `--tools` | `bash view watch answer` | tools offered, in prompt order |
+| `--tools` | `bash view watch answer` | omni mode additionally offers `listen_audio`; explicit lists replace defaults |
 | `--rules` | none | optional rules |
-| `--backend` | `vllm` | or `hf` (transformers) |
+| `--agent-mode` | `visual` | `omni` enables the direct-audio agent mode |
+| `--backend` | mode dependent | visual: `vllm`; omni: `gemini`; explicit choices: `vllm`, `hf`, `gemini` |
+| `--model` | backend dependent | local Qwen3.8-27B path/ID, or `gemini-3.8-flash` for Gemini |
+| `--max-listen`, `--listen-seconds` | `4`, `30` | per-question audio calls and maximum duration per call |
+| `--api-workers`, `--api-timeout`, `--api-retries` | `4`, `180`, `2` | simultaneous Gemini requests, timeout seconds, retries after the initial request |
+| `--gemini-thinking-level` | model default | optional `low`, `medium`, `high`; separate from local Qwen reasoning effort |
 | `--tp` | 1 | tensor parallel GPUs |
 | `--limit`, `--uids`, `--uids-file` | | a subset of questions |
 | `--tag`, `--out` | | run directory name |
@@ -263,12 +333,18 @@ left off. The first log line for each benchmark tells you how many questions hav
 <a id="outputs"></a>
 ### Outputs
 
-Each run writes to `outputs/<bench>/agent_<backend><tag>/`:
+Default run directories are `outputs/<bench>/agent_<backend><tag>/` in visual mode and
+`outputs/<bench>/agent_gemini_omni<tag>/` in omni mode; `--out` selects an explicit directory:
 
 - `results_shard<i>of<n>.jsonl`: one record per question, with the prediction, the stop reason, every turn with its
   tool calls and outputs, the images viewed and the time spent;
 - `config_shard<i>of<n>.json`: the run settings;
 - `scores.json`: accuracy overall and per benchmark dimension, with tool and stop statistics.
+
+Omni records also include listening intervals and audio-extraction metadata; Gemini records include per-request and
+aggregate token usage. Audio bytes, credentials and provider signature payloads are not written into result JSON.
+Use separate output directories for visual and omni comparisons. Gemini resumes check the model, mode, tools,
+budgets and thinking configuration before skipping existing question IDs.
 
 <a id="extend-the-harness"></a>
 ## 🧩 Extend the Harness
@@ -390,16 +466,17 @@ Have an idea or a question first? Open an [issue](https://github.com/WPR001/Open
 omniharness/
   config.py        paths; AgentConfig (budgets, sampling, tools, rules)
   agent/           loop.py (the agent loop), prompts.py (system prompt and fixed messages)
-  tools/           bash.py, view.py, watch.py, answer.py; registry and ToolBox in __init__.py
+  tools/           bash.py, view.py, watch.py, answer.py, listen_audio.py; registry and ToolBox
   sandbox/         sandbox.py: per-question work dir and bash runner
   commands/        video.py (vprobe, vsheet, vframes, vcrop), asr.py; bin/ wrappers
   rules/           guard.py (built-in command guard), extra.py (optional rules)
-  media/           video.py (decoding, contact sheets), transcript.py (transcript store)
-  backends/        vllm_backend.py, hf.py, render.py (Qwen3.8 chat template)
+  media/           video.py, transcript.py, audio.py (bounded raw-audio extraction)
+  backends/        vllm_backend.py, hf.py, render.py; gemini.py (official API and native tools)
   benchmarks/      daily_omni.py, worldsense.py, omnivideobench.py, lvomnibench.py
 asr/               build.py (transcripts), slurm/build_asr.sbatch
 infer/             run_single.py, run_bench.py, score.py, slurm/run_bench.sbatch
 scripts/           setup_envs.sh, download_models.sh
+requirements-omni.txt  API inference dependencies, without CUDA/PyTorch/vLLM
 assets/            figures for this README
 ```
 

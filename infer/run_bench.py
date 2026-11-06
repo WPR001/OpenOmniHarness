@@ -41,12 +41,16 @@ def main():
 
     opts = parse_opts(args.bench_opt)
     wanted = json.load(open(args.uids_file)) if args.uids_file else None
-    cfg = build_config(args)
+    try:
+        cfg = build_config(args)
+    except ValueError as e:
+        parser.error(str(e))
     runs, todo = {}, []
     for name in args.bench:
         bench = get_benchmark(name, args.root, **opts)
         tag = ''.join(f'_{k}-{v}' for k, v in sorted(opts.items())) + args.tag
-        out = args.out or os.path.join(ROOT, 'outputs', name, f'agent_{args.backend}{tag}')
+        mode_suffix = '_omni' if cfg.agent_mode == 'omni' else ''
+        out = args.out or os.path.join(ROOT, 'outputs', name, f'agent_{args.backend}{mode_suffix}{tag}')
         os.makedirs(out, exist_ok=True)
         samples = [s for k, s in enumerate(bench.load()) if k % args.num_shards == args.shard_id]
         if args.uids or wanted is not None:
@@ -59,11 +63,26 @@ def main():
         if os.path.exists(result_file):
             with open(result_file, encoding='utf-8') as f:
                 done = {json.loads(l)['uid'] for l in f if l.strip()}
+        config_path = os.path.join(out, f'config_shard{args.shard_id}of{args.num_shards}.json')
+        if done and args.backend == 'gemini':
+            if not os.path.exists(config_path):
+                parser.error(f'existing Gemini results have no run configuration: {out}; choose a new --out')
+            with open(config_path, encoding='utf-8') as f:
+                previous = json.load(f)
+            old_args, old_cfg = previous.get('args', {}), previous.get('config', {})
+            identity_args = ('backend', 'model', 'gemini_thinking_level')
+            identity_cfg = ('agent_mode', 'tools', 'rules', 'max_listen', 'listen_seconds', 'temperature', 'turn_tokens')
+            current = config_dict(args, cfg)
+            # JSON normalizes tuples before comparing a saved run with this invocation.
+            current = json.loads(json.dumps(current))
+            if (any(old_args.get(k) != current['args'].get(k) for k in identity_args)
+                    or any(old_cfg.get(k) != current['config'].get(k) for k in identity_cfg)):
+                parser.error(f'Gemini run configuration differs from existing results in {out}; choose a new --out/--tag')
         no_asr = [s for s in samples if not os.path.exists(store_path(ASR_CACHE, s.audio or s.video))]
         mine = [s for s in samples if s.uid not in done and os.path.exists(s.video)]
         print(f'{name}: {len(samples)} questions in this shard, {len(done)} done, {len(mine)} to run, '
               f'{len(no_asr)} without a transcript yet -> {result_file}', flush=True)
-        with open(os.path.join(out, f'config_shard{args.shard_id}of{args.num_shards}.json'), 'w') as f:
+        with open(config_path, 'w') as f:
             json.dump(config_dict(args, cfg), f, indent=1, default=str)
         runs[name] = (bench, out, result_file)
         todo += [(name, s) for s in mine]
@@ -93,6 +112,9 @@ def main():
         finally:
             for f in files.values():
                 f.close()
+            close = getattr(agent.backend, 'close', None)
+            if close:
+                close()
     for name, (bench, out, _) in runs.items():
         print(name, json.dumps(score_run(out, bench), indent=1, ensure_ascii=False)[:3000])
 

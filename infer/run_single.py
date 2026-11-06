@@ -24,11 +24,20 @@ def main():
     parser.add_argument('--options', nargs='+', required=True)
     parser.add_argument('--out', default='')
     args = parser.parse_args()
-    cfg = build_config(args)
+    try:
+        cfg = build_config(args)
+    except ValueError as e:
+        parser.error(str(e))
     options = letter_options(args.options)
     sample = Sample(uid=os.path.splitext(os.path.basename(args.video))[0], video=os.path.abspath(args.video),
                     question=args.question, options=options, prompt=args.question)
-    record = Agent(build_backend(args, cfg), cfg, workers=args.workers).run([sample])[0]
+    backend = build_backend(args, cfg)
+    try:
+        record = Agent(backend, cfg, workers=args.workers).run([sample])[0]
+    finally:
+        close = getattr(backend, 'close', None)
+        if close:
+            close()
     text = json.dumps(record, ensure_ascii=False, indent=1, default=str)
     print(text)
     if args.out:

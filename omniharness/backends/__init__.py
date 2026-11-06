@@ -1,6 +1,10 @@
-"""Local backends for Qwen3.8-27B. Both render the conversation with the model's own chat template (tools included)
-and return raw text; the agent parses thinking and tool calls itself, so both behave the same."""
-from dataclasses import dataclass
+"""Local Qwen backends and an opt-in official Gemini API backend.
+
+Local backends return text for the model-specific parser; API backends may return native tool calls and opaque
+provider content, which the agent preserves across turns.
+"""
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -15,6 +19,9 @@ class Output:
     text: str
     prompt_tokens: int = 0
     error: str = ''
+    tool_calls: list = None         # None: local text parsing; []: native response without function calls
+    usage: dict = field(default_factory=dict)
+    provider_content: Any = None    # complete provider model message, including opaque thought signatures
 
 
 class Batched:
@@ -32,6 +39,9 @@ class Batched:
 
 
 def make_backend(name, model_path, cfg, tools, **kwargs):
+    if name == 'gemini':
+        from .gemini import GeminiBackend
+        return GeminiBackend(model_path, cfg, tools, **kwargs)
     if name == 'hf':
         from .hf import HFBackend
         return HFBackend(model_path, cfg, tools, **kwargs)

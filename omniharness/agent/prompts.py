@@ -49,10 +49,34 @@ FORCE = ('The budget is used up. Call the answer tool now with the most likely o
          'based on what you have found so far.')
 
 DROPPED = '[an image shown earlier was dropped from the conversation to save context]'
+DROPPED_AUDIO = '[audio heard earlier was dropped to save context; its source time interval is retained above]'
+
+
+def reminder(cfg):
+    if 'listen_audio' in cfg.tools:
+        return 'Use an available tool to gather evidence, including listen_audio when needed, or call answer.'
+    return REMIND
 
 
 def system_prompt(cfg, tools=()):
     """SYSTEM with the budgets, then the lines of the active rules (end of the Rules section), then the prompt text of
     the offered tools that have one."""
     text = SYSTEM.format(max_turns=cfg.max_turns, max_images=cfg.max_images, max_minutes=int(cfg.max_seconds // 60))
+    if 'listen_audio' in cfg.tools:
+        text = text.replace('the transcript files below are your only access to the audio.',
+                            'the transcript files provide recognized speech. You can also request original audio '
+                            'from a selected time interval using listen_audio.')
+        text = text.replace('watch and answer are tools, not shell commands.',
+                            'watch, listen_audio and answer are tools, not shell commands.')
+        text = text.replace('answer (give the final option letter).',
+                            'listen_audio (hear original audio in a selected time window), '
+                            'answer (give the final option letter).')
+        text = text.replace('- A sound that is not speech is not in the transcript: find its source in the frames, '
+                            'or use "[no words]" stretches as hints of where it happens.',
+                            '- ASR contains recognized speech, not all sounds. Use listen_audio when sounds, music, '
+                            'voice tone or uncertain transcription matter. "[no words]" is not evidence of silence. '
+                            'You choose whether and when to listen; no fixed tool sequence is required.')
+        text += (f'\n- Original-audio budget: {cfg.max_listen} calls, up to {cfg.listen_seconds:g} seconds each. '
+                 'Specify absolute source times t0 and t1. Audio playback time zero maps to t0 in the source. '
+                 'Audio is supplied by the tool; ./video.mp4 stays muted.')
     return text + rules.prompt_lines(cfg) + ''.join(tool.prompt for tool in tools if tool.prompt)

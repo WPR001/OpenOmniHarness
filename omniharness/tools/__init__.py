@@ -9,7 +9,7 @@ import time
 
 from .. import commands, rules
 from .base import REGISTRY, Tool, ToolInputError, register
-from . import bash, view, watch, answer  # noqa: F401,E402  (registers the tools)
+from . import bash, view, watch, answer, listen_audio  # noqa: F401,E402  (registers the tools)
 
 
 def specs(cfg):
@@ -31,10 +31,12 @@ class ToolBox:
         """Returns (content items for the tool message, info dict for the trace)."""
         t = time.time()
         args = args or {}
+        audio_calls_before = len(self.state.get('audio_listen_calls', []))
+        trace_args = listen_audio.trace_arguments(args) if name == 'listen_audio' else args
         try:
             reason = rules.refuse_call(self.cfg, name, args, self)
             if reason:
-                self.refused.append({'tool': name, 'args': args, 'reason': reason})
+                self.refused.append({'tool': name, 'args': trace_args, 'reason': reason})
                 content = [{'type': 'text', 'text': f'[not run] {reason}'}]
             elif name in self.cfg.tools:
                 content = REGISTRY[name].run(self, args)
@@ -50,8 +52,14 @@ class ToolBox:
         text = ' '.join(c['text'] for c in content if c['type'] == 'text')
         n_img = sum(c['type'] == 'image' for c in content)
         n_vid = sum(c['type'] == 'video' for c in content)
-        return content, {'tool': name, 'args': args, 'output': text[:2000], 'images': n_img, 'videos': n_vid,
-                         'seconds': round(time.time() - t, 2)}
+        info = {'tool': name, 'args': trace_args, 'output': text[:2000], 'images': n_img, 'videos': n_vid,
+                'seconds': round(time.time() - t, 2)}
+        if name == 'listen_audio':
+            info['audios'] = sum(c['type'] == 'audio' for c in content)
+            audio_calls = self.state.get('audio_listen_calls', [])
+            if len(audio_calls) > audio_calls_before:
+                info['audio'] = dict(audio_calls[-1])
+        return content, info
 
     def _as_command(self, name, args):
         """A sandbox command called as if it were a tool (e.g. vsheet {"t0": 0, "t1": 30, "every": 2}):

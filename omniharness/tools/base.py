@@ -4,8 +4,10 @@ the model when its name is in cfg.tools.
 
 The function gets the question's ToolBox (box.sb the sandbox, box.cfg the config, box.images / box.watches the budgets
 used so far, box.state free per-question storage) and the arguments, and returns the content of the tool message:
-a list of {'type': 'text', 'text': str}, {'type': 'image', 'image': PIL.Image} or
-{'type': 'video', 'video': frames, 'metadata': dict} items. Raise ToolInputError for a bad call; the model sees
+a list of {'type': 'text', 'text': str}, {'type': 'image', 'image': PIL.Image},
+{'type': 'video', 'video': frames, 'metadata': dict}, or (audio-capable backends only)
+{'type': 'audio', 'audio': WAV bytes, 'mime_type': 'audio/wav', 't0': float, 't1': float} items.
+Raise ToolInputError for a bad call; the model sees
 "[error] <message>" and the question goes on."""
 from dataclasses import dataclass
 from typing import Callable

@@ -24,6 +24,8 @@ class Sandbox:
         self.dir = os.path.join(cfg.sandbox_root, f'{name}_{uuid.uuid4().hex[:6]}')
         os.makedirs(self.dir)
         source = sample.audio or sample.video
+        # Host-only source for the optional listen_audio tool; never linked into the sandbox or its environment.
+        self._audio_source = os.path.abspath(source)
         self.video = muted_copy(sample.video, muted_cache, video_key(sample.video))
         os.symlink(self.video, os.path.join(self.dir, 'video.mp4'))
         self.asr_json = store_path(asr_cache, source)

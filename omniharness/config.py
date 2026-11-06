@@ -40,3 +40,6 @@ class AgentConfig:
     rules: tuple = ()                # optional rules switched on by name (omniharness/rules/extra.py)
     keep_sandbox: bool = False
     sandbox_root: str = field(default_factory=lambda: os.environ.get('OH_SCRATCH', '/tmp/omniharness_sandbox'))
+    agent_mode: str = 'visual'       # visual: V+ASR; omni: optional original-audio observations
+    max_listen: int = 4              # original-audio windows; only offered in omni mode
+    listen_seconds: float = 30.0     # maximum duration of one audio window

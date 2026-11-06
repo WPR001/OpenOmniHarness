@@ -1,0 +1,9 @@
+# Official Gemini API inference (Python 3.12), without local model / CUDA dependencies.
+# System binaries: ffmpeg and ffprobe on PATH. ASR preparation uses requirements-asr.txt separately.
+# Install: python -m pip install -r requirements-omni.txt
+google-genai==3.0.0
+av==19.0.2
+pillow==13.0.0
+numpy==2.3.5
+pandas==3.1.0
+pyarrow==26.0.0
