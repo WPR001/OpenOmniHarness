@@ -491,14 +491,11 @@ The Online Omni Harness is on its way. Stay tuned!
 If OpenOmniHarness or SleuthVLM helps your research, please cite:
 
 ```bibtex
-@misc{wu2026sleuthvlmreallyneedaudioinvideo,
-      title={SleuthVLM: Do We Really Need Audio-in-Video for Omni Video Understanding?},
-      author={Peiran Wu and Fangfei Gou and Zhaoxi Mu and Changhao Zhang and Jian Liu and Weiqiang Wang and Yuntao Wang and Yuanchun Shi and Junxiao Shen},
-      year={2026},
-      eprint={2611.06083},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2611.06083},
+@article{wu2026sleuthvlm,
+  title={SleuthVLM: Do We Really Need Audio-in-Video for Omni Video Understanding?},
+  author={Wu, Peiran and Gou, Fangfei and Mu, Zhaoxi and Zhang, Changhao and Liu, Jian and Wang, Weiqiang and Wang, Yuntao and Shi, Yuanchun and Shen, Junxiao},
+  journal={arXiv preprint arXiv:2611.06083},
+  year={2026}
 }
 ```
 
