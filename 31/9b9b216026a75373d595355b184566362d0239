@@ -1,0 +1,61 @@
+omniharness/audio_math/prompts.py
+  s_a6f48806641c47::t_768aa591d5849c 1-73
+omniharness/audio_math/runtime.py
+  s_a6f48806641c47::t_7d608493b4a3f8 1-25,28-205
+  s_a6f48806641c47::t_a2826d7e38f5d6 26-27
+tests/test_audio_math_config.py
+  s_a6f48806641c47::t_ae9396f17b0d0a 1-111
+omniharness/audio_math/__init__.py
+  s_a6f48806641c47::t_905274ccdd1805 1-8,11,13-30,32-37
+  s_a6f48806641c47::t_980ee57d8aa0f0 9-10,12,31
+README.md
+  s_a6f48806641c47::t_989fcd9b7eedc0 32-33,44-47,64,78-79,103-104,117-119,281-316,318-341,392-393,541,552
+  s_a6f48806641c47::t_99e3a4fe319fd5 317,389
+  s_a6f48806641c47::t_a1ba6d02706b66 342
+omniharness/rules/guard.py
+  s_a6f48806641c47::t_7d608493b4a3f8 5-8,20
+omniharness/agent/prompts.py
+  s_a6f48806641c47::t_768aa591d5849c 56-58,85-89
+omniharness/tools/__init__.py
+  s_a6f48806641c47::t_7d608493b4a3f8 12,17-18,24-25,66-67
+omniharness/tools/audio_math.py
+  s_a6f48806641c47::t_905274ccdd1805 1-47
+omniharness/agent/loop.py
+  s_a6f48806641c47::t_7d608493b4a3f8 28-29,104-108,202-206
+omniharness/rules/__init__.py
+  s_a6f48806641c47::t_7d608493b4a3f8 12,38,40-41,49
+tests/test_audio_math_runtime.py
+  s_a6f48806641c47::t_a2826d7e38f5d6 1-120
+infer/run_bench.py
+  s_a6f48806641c47::t_3a53a66e110140 16,53-54,56-59
+omniharness/config.py
+  s_a6f48806641c47::t_905274ccdd1805 46-49
+infer/common.py
+  s_a6f48806641c47::t_3a53a66e110140 3,8,44-51,92-98,125-150
+omniharness/audio_math/analysis_worker.py
+  s_a6f48806641c47::t_75b2ddf834ea50 1-20
+omniharness/audio_math/dsp.py
+  s_a6f48806641c47::t_cf342a37587dd7 1-439
+omniharness/audio_math/python_worker.py
+  s_a6f48806641c47::t_dea17a7783ddf1 1-254
+requirements-audio-math.txt
+  s_a6f48806641c47::t_4602d47ccfbb79 1-5
+tests/test_audio_math_workers.py
+  s_a6f48806641c47::t_0a16da12f21633 1-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "319b9b216026a75373d595355b184566362d0239",
+  "prompts": {},
+  "sessions": {
+    "s_a6f48806641c47": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13f6a-145c-7e91-a3e1-b50db5d963e6",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "WPR001 <894993721@qq.com>"
+    }
+  }
+}
