@@ -1,9 +1,11 @@
 """Command-line options shared by run_single.py and run_bench.py, and building the backend and agent from them."""
 import argparse
+import json
 import math
 import os
 import sys
 from dataclasses import asdict
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -39,6 +41,14 @@ def add_common_args(parser: argparse.ArgumentParser):
                    help='tools offered in prompt order; omni mode adds listen_audio to the default tools')
     g.add_argument('--max-listen', type=int, default=d.max_listen, help='audio calls per question; 0 disables listening')
     g.add_argument('--listen-seconds', type=float, default=d.listen_seconds, help='maximum seconds per audio window')
+    g.add_argument('--harness-version', choices=['original', 'audio-math-v1'], default=d.harness_version,
+                   help='audio-math-v1 adds audio_analyze and audio_python to the visual/ASR workflow')
+    g.add_argument('--audio-analysis-calls', type=int, default=d.audio_analysis_calls,
+                   help='combined audio_analyze/audio_python calls per question')
+    g.add_argument('--audio-analysis-seconds', type=float, default=d.audio_analysis_seconds,
+                   help='maximum duration of each analyzed audio interval')
+    g.add_argument('--audio-analysis-timeout', type=float, default=d.audio_analysis_timeout,
+                   help='maximum CPU worker wall time per audio analysis call')
     g.add_argument('--rules', nargs='*', choices=sorted(rules.REGISTRY), default=list(d.rules), metavar='NAME',
                    help='optional rules to switch on (omniharness/rules/extra.py)')
     g.add_argument('--temperature', type=float, default=d.temperature)
@@ -79,6 +89,13 @@ def build_config(args):
     cfg.agent_mode = args.agent_mode
     cfg.max_listen, cfg.listen_seconds = args.max_listen, args.listen_seconds
     cfg.tools, cfg.rules = tuple(args.tools), tuple(args.rules)
+    cfg.harness_version = args.harness_version
+    cfg.audio_analysis_calls = args.audio_analysis_calls
+    cfg.audio_analysis_seconds = args.audio_analysis_seconds
+    cfg.audio_analysis_timeout = args.audio_analysis_timeout
+    from omniharness.audio_math import normalize_config
+    normalize_config(cfg)
+    args.tools = list(cfg.tools)
     cfg.reasoning_effort, cfg.enable_thinking = args.reasoning_effort or cfg.reasoning_effort, not args.no_thinking
     cfg.preserve_thinking = not args.no_preserve_thinking
     cfg.temperature, cfg.turn_tokens, cfg.keep_sandbox = args.temperature, args.turn_tokens, args.keep_sandbox
@@ -105,3 +122,29 @@ def build_backend(args, cfg):
 
 def config_dict(args, cfg):
     return {'args': vars(args), 'config': asdict(cfg)}
+
+
+def check_audio_math_resume(directory, args, cfg):
+    """Keep a benchmark output directory tied to one audio-analysis configuration."""
+    root = Path(directory)
+    version = cfg.harness_version
+    if version == 'audio-math-v1':
+        for result in root.glob('results_shard*.jsonl'):
+            config = root / (result.stem.replace('results_', 'config_', 1) + '.json')
+            if result.stat().st_size and not config.exists():
+                raise ValueError(f'existing results have no harness configuration: {directory}; choose a new --out/--tag')
+    current = json.loads(json.dumps(config_dict(args, cfg)))
+    identity_args = ('backend', 'model', 'gemini_thinking_level')
+    identity_cfg = ('agent_mode', 'tools', 'rules', 'max_listen', 'listen_seconds', 'temperature', 'turn_tokens',
+                    'audio_analysis_calls', 'audio_analysis_seconds', 'audio_analysis_timeout',
+                    'reasoning_effort', 'enable_thinking', 'preserve_thinking')
+    for path in root.glob('config_shard*.json'):
+        with path.open(encoding='utf-8') as f:
+            previous = json.load(f)
+        old_args, old_cfg = previous.get('args', {}), previous.get('config', {})
+        if old_cfg.get('harness_version', 'original') != version:
+            raise ValueError(f'{directory} contains another harness version; choose a new --out/--tag')
+        if version == 'audio-math-v1' and (
+                any(old_args.get(k) != current['args'].get(k) for k in identity_args)
+                or any(old_cfg.get(k) != current['config'].get(k) for k in identity_cfg)):
+            raise ValueError(f'audio-math run configuration differs in {directory}; choose a new --out/--tag')

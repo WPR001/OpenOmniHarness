@@ -13,7 +13,7 @@ import json
 import os
 import time
 
-from common import ROOT, add_common_args, build_backend, build_config, config_dict
+from common import ROOT, add_common_args, build_backend, build_config, check_audio_math_resume, config_dict
 
 from omniharness.agent import Agent
 from omniharness.benchmarks import BENCHMARKS, get_benchmark, parse_opts
@@ -50,8 +50,13 @@ def main():
         bench = get_benchmark(name, args.root, **opts)
         tag = ''.join(f'_{k}-{v}' for k, v in sorted(opts.items())) + args.tag
         mode_suffix = '_omni' if cfg.agent_mode == 'omni' else ''
-        out = args.out or os.path.join(ROOT, 'outputs', name, f'agent_{args.backend}{mode_suffix}{tag}')
+        version_suffix = '_audio_math_v1' if cfg.harness_version == 'audio-math-v1' else ''
+        out = args.out or os.path.join(ROOT, 'outputs', name, f'agent_{args.backend}{mode_suffix}{version_suffix}{tag}')
         os.makedirs(out, exist_ok=True)
+        try:
+            check_audio_math_resume(out, args, cfg)
+        except ValueError as e:
+            parser.error(str(e))
         samples = [s for k, s in enumerate(bench.load()) if k % args.num_shards == args.shard_id]
         if args.uids or wanted is not None:
             keep = set(args.uids) | set(wanted.get(name, []) if isinstance(wanted, dict) else wanted or [])

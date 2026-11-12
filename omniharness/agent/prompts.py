@@ -53,6 +53,9 @@ DROPPED_AUDIO = '[audio heard earlier was dropped to save context; its source ti
 
 
 def reminder(cfg):
+    if getattr(cfg, 'harness_version', 'original') == 'audio-math-v1':
+        return ('Continue with an available tool, using audio analysis for a localized acoustic question '
+                'when needed, or call answer with the option letter.')
     if 'listen_audio' in cfg.tools:
         return 'Use an available tool to gather evidence, including listen_audio when needed, or call answer.'
     return REMIND
@@ -79,4 +82,8 @@ def system_prompt(cfg, tools=()):
         text += (f'\n- Original-audio budget: {cfg.max_listen} calls, up to {cfg.listen_seconds:g} seconds each. '
                  'Specify absolute source times t0 and t1. Audio playback time zero maps to t0 in the source. '
                  'Audio is supplied by the tool; ./video.mp4 stays muted.')
-    return text + rules.prompt_lines(cfg) + ''.join(tool.prompt for tool in tools if tool.prompt)
+    text += rules.prompt_lines(cfg) + ''.join(tool.prompt for tool in tools if tool.prompt)
+    if getattr(cfg, 'harness_version', 'original') == 'audio-math-v1':
+        from ..audio_math.prompts import augment_system
+        text = augment_system(text, cfg)
+    return text

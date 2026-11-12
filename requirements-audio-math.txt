@@ -1,0 +1,5 @@
+# Optional CPU signal analysis; install alongside the local or Gemini inference environment.
+# Requires ffmpeg and ffprobe on PATH.
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7

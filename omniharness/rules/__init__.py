@@ -9,7 +9,7 @@ Refused commands are kept in the record's `denied`, refused tool calls in its `r
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from .guard import GUARD
+from .guard import GUARD, AUDIO_COMMAND_GUARD
 
 REGISTRY = {}
 
@@ -35,8 +35,10 @@ def active(cfg):
     return [REGISTRY[name] for name in cfg.rules]
 
 
-def guard(command):
+def guard(command, allow_audio=False):
     for pattern, reason in GUARD:
+        if allow_audio and pattern is AUDIO_COMMAND_GUARD[0]:
+            continue
         if pattern.search(command):
             return reason
     return None
@@ -44,7 +46,7 @@ def guard(command):
 
 def refuse_command(cfg, command):
     """Why a bash command is not run, or None."""
-    reason = guard(command)
+    reason = guard(command, allow_audio=getattr(cfg, 'harness_version', 'original') == 'audio-math-v1')
     if reason:
         return reason
     for rule in active(cfg):

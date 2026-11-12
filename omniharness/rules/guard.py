@@ -2,6 +2,10 @@
 network, process, package or system tools is refused with the reason shown. Every command is logged in the record."""
 import re
 
+AUDIO_COMMAND_GUARD = (
+    re.compile(r'\bffmpeg\b.*(\s-vn\b|\.(wav|mp3|aac|flac|m4a)\b)'),
+    'there is no audio in this video; use asr')
+
 GUARD = [
     (re.compile(r'(?<![\w.)\]}-])/(mnt|home|root|etc|usr|opt|var|proc|sys|tmp|data|srv|bin|sbin|lib|lib64|boot|run|'
                 r'snap|media|scratch|dev/(?!null\b))'),
@@ -13,5 +17,5 @@ GUARD = [
      'network, package, process and system commands are not available'),
     (re.compile(r'\b(socket|urllib|requests|http\.client|subprocess|os\.system|shutil\.rmtree)\b'),
      'network and process modules are not available'),
-    (re.compile(r'\bffmpeg\b.*(\s-vn\b|\.(wav|mp3|aac|flac|m4a)\b)'), 'there is no audio in this video; use asr'),
+    AUDIO_COMMAND_GUARD,
 ]

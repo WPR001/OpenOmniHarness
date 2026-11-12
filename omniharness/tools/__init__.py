@@ -9,16 +9,20 @@ import time
 
 from .. import commands, rules
 from .base import REGISTRY, Tool, ToolInputError, register
-from . import bash, view, watch, answer, listen_audio  # noqa: F401,E402  (registers the tools)
+from . import bash, view, watch, answer, listen_audio, audio_math  # noqa: F401,E402  (registers the tools)
 
 
 def specs(cfg):
     """Schemas of the offered tools, as passed to the chat template."""
+    from ..audio_math import normalize_config
+    normalize_config(cfg)
     return [{'type': 'function', 'function': REGISTRY[name].spec} for name in cfg.tools]
 
 
 class ToolBox:
     def __init__(self, sandbox, cfg):
+        from ..audio_math import normalize_config
+        normalize_config(cfg)
         self.sb = sandbox
         self.cfg = cfg
         self.images = 0
@@ -59,6 +63,8 @@ class ToolBox:
             audio_calls = self.state.get('audio_listen_calls', [])
             if len(audio_calls) > audio_calls_before:
                 info['audio'] = dict(audio_calls[-1])
+        if name in ('audio_analyze', 'audio_python'):
+            info['output'] = text
         return content, info
 
     def _as_command(self, name, args):

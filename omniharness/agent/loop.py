@@ -25,6 +25,8 @@ MAX_CALLS_PER_TURN = 4
 
 class Agent:
     def __init__(self, backend, cfg, workers=16):
+        from ..audio_math import normalize_config
+        normalize_config(cfg)
         if cfg.agent_mode not in ('visual', 'omni'):
             raise ValueError('agent_mode must be visual or omni')
         if cfg.agent_mode == 'omni' and not getattr(backend, 'supports_raw_audio', False):
@@ -99,7 +101,11 @@ class Agent:
     def _flow(self, sample, holder):
         cfg = self.cfg
         t_start = time.time()
-        sandbox = Sandbox(sample, cfg)
+        sandbox_type = Sandbox
+        if cfg.harness_version == 'audio-math-v1':
+            from ..audio_math.runtime import AudioMathSandbox
+            sandbox_type = AudioMathSandbox
+        sandbox = sandbox_type(sample, cfg)
         record = holder['record'] = {'uid': sample.uid, 'answer': sample.answer, 'meta': sample.meta, 'pred': None,
                                      'stop': None, 'turns': 0, 'trace': [], 'prompt_tokens': [], 'errors': []}
         try:
@@ -193,6 +199,11 @@ class Agent:
                 for c in s['calls']:
                     record['tool_counts'][c['tool']] = record['tool_counts'].get(c['tool'], 0) + 1
             record['images_viewed'] = tools.images
+            if cfg.harness_version == 'audio-math-v1':
+                audio_math = tools.state.get('audio_math')
+                record['harness_version'] = cfg.harness_version
+                record['audio_math'] = {'calls': audio_math.log if audio_math else [],
+                                        'sandbox': sandbox.dir if cfg.keep_sandbox else None}
             if cfg.agent_mode == 'omni':
                 record['audio_listen'] = {'offered': 'listen_audio' in cfg.tools,
                                           'calls_used': tools.state.get('audio_listen_count', 0),

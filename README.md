@@ -29,6 +29,8 @@ zoom in, replay a moment, and answer once the evidence decides.
   closely, and when it has seen enough.
 - **Audio as text, with optional direct listening.** The default visual mode uses word-timed transcripts.
   `--agent-mode omni` also lets an audio-capable model request short raw-audio segments with `listen_audio`.
+- **Audio to Math.** `--harness-version audio-math-v1` adds signal measurements and model-written audio analysis.
+  Inspect waveforms, spectra and event timing through the existing image and shell tools.
 - **Official Gemini backend.** Omni mode uses Google's `google-genai` SDK and the official Gemini API.
   Credentials come from the `GEMINI_API_KEY` environment variable.
 - **Plug and play.** Tools, sandbox commands and rules are switched on by name, so a new idea is one flag away.
@@ -39,10 +41,10 @@ zoom in, replay a moment, and answer once the evidence decides.
 <a id="supported-models"></a>
 ## Supported Models
 
-| Model | Deployment | Agent modes |
-|---|---|---|
-| Qwen3.8-27B | Local, via vLLM or Hugging Face Transformers | `visual` — video frames + ASR |
-| Gemini | Official Gemini API | `visual` — video frames + ASR; `omni` — adds on-demand audio listening |
+| Model | Deployment | Agent modes | Audio to Math |
+|---|---|---|---|
+| Qwen3.8-27B | Local, via vLLM or Hugging Face Transformers | `visual` — video frames + ASR | Optional |
+| Gemini | Official Gemini API | `visual` — video frames + ASR; `omni` — adds on-demand audio listening | Optional in either mode |
 
 <a id="roadmap"></a>
 ## 🗺️ Roadmap
@@ -59,7 +61,7 @@ zoom in, replay a moment, and answer once the evidence decides.
 - [SleuthVLM: The Offline Baseline](#sleuthvlm)
   - [Results](#results) · [See It at Work](#see-it-at-work)
 - [Installation](#installation)
-- [Quick Start](#quick-start) · [Omni Agentic Mode](#omni-agentic-mode)
+- [Quick Start](#quick-start) · [Omni Agentic Mode](#omni-agentic-mode) · [Audio to Math](#audio-to-math)
 - [Evaluation](#evaluation)
   - [Prepare the Data](#prepare-the-data) · [Run](#run) · [Options](#options) · [Outputs](#outputs)
 - [Extend the Harness](#extend-the-harness)
@@ -73,6 +75,8 @@ zoom in, replay a moment, and answer once the evidence decides.
 The Offline Omni Harness works on recorded videos. In the default visual mode, it transcribes speech once, then
 lets the model search the transcript and inspect relevant video moments. Omni mode adds a `listen_audio` tool:
 the model selects a time interval, receives the actual audio from that interval, and continues the same conversation.
+Audio to Math adds `audio_analyze` and `audio_python` to either mode, giving the model signal measurements and plots
+for the intervals it chooses.
 
 <p align="center">
   <img src="assets/method.png" alt="Overview: (a) speech becomes a word-timed transcript, (b) a VLM gathers evidence with tools in a sandbox, (c) it answers within a fixed budget" width="100%">
@@ -96,6 +100,8 @@ the four default tools:
 | `watch` | shows a segment of up to 30 s as video |
 | `answer` | gives the option letter and ends the question |
 | `listen_audio` (omni mode) | returns original audio from an absolute time interval; default budget: 4 calls, 30 s each |
+| `audio_analyze` (audio-math-v1) | measures energy, events, spectra, rhythm or two-window similarity; returns numerical results and plot/table paths |
+| `audio_python` (audio-math-v1) | runs model-written Python on an audio interval; returns measurements and saved artifacts |
 
 Inside `bash`, a handful of commands cover the video and the transcript:
 
@@ -108,8 +114,9 @@ Inside `bash`, a handful of commands cover the video and the transcript:
 | `asr window / search / words / gaps` | transcript lines, search, word times, stretches without speech |
 
 The model can also write code within the sandbox, for example to crop and enlarge a region or to tile frames into
-its own sheet. Original audio stays outside the sandbox; `listen_audio` extracts only the requested interval under
-the configured listening budget.
+its own sheet. With the original harness, audio stays outside the sandbox and `listen_audio` extracts the requested
+interval. With Audio to Math enabled, the first analysis call also prepares a supplementary audio track in the
+sandbox; the model reads measurements and can inspect generated plots with `view`.
 
 ### Step 3 · It answers when the evidence decides
 
@@ -271,6 +278,68 @@ is returned as mono 16 kHz PCM WAV with its original time offset. `--max-listen`
 budget; `--listen-seconds` controls each segment's maximum duration. Audio decoding consumes one call, including
 failed decoding attempts; invalid timestamps and missing audio tracks return an error without consuming a call.
 
+<a id="audio-to-math"></a>
+### Audio to Math
+
+Add the CPU signal-analysis dependencies to your local or Gemini environment:
+
+```bash
+python -m pip install -r requirements-audio-math.txt
+```
+
+Select `--harness-version audio-math-v1` to add `audio_analyze` and `audio_python`. The default is `original`.
+The model follows the visual/ASR workflow, then uses signal analysis during localization when a question needs
+additional acoustic evidence. For example, it can compare fundamental frequencies to determine an octave span,
+inspect transient times, or align an energy change with a visible event.
+
+```bash
+# Local Qwen3.8-27B: visual + ASR + signal analysis
+python infer/run_single.py --harness-version audio-math-v1 \
+    --video /path/clip.mp4 \
+    --question "How many octaves separate the lowest and highest tuned notes?" \
+    --options "A. One" "B. Two" "C. Three" "D. Four" \
+    --keep-sandbox --out outputs/single/clip_a2m.json
+
+# Official Gemini: visual + ASR + signal analysis
+python infer/run_bench.py --bench omnivideobench --backend gemini \
+    --harness-version audio-math-v1 --model gemini-3.8-flash \
+    --api-workers 4 --batch-size 4 --keep-sandbox \
+    --out outputs/omnivideobench/gemini_a2m
+
+# Official Gemini: add both listening and signal analysis
+python infer/run_bench.py --bench lvomnibench --agent-mode omni \
+    --harness-version audio-math-v1 --model gemini-3.8-flash \
+    --api-workers 4 --batch-size 4 --keep-sandbox \
+    --out outputs/lvomnibench/gemini_omni_a2m
+```
+
+`--agent-mode` selects whether the model can listen; `--harness-version` selects the signal-analysis tools.
+An explicit `--tools` list selects the base tools; `audio-math-v1` always adds both signal-analysis tools.
+
+| Tool | Input | Output |
+|---|---|---|
+| `audio_analyze` | `t0`, `t1`, `mode`, optional `params` | Measurements, original-timeline timestamps, PNG plots and CSV/JSON paths |
+| `audio_python` | `t0`, `t1`, Python `code` | `result`, captured output and saved artifact paths |
+
+`audio_analyze` supports `overview`, `events`, `spectrum`, `rhythm` and `compare`.
+For `compare`, supply a second interval as `params.comparison_window=[start,end]`. Other parameters include
+`channel`, `band_hz`, `window_ms`, `hop_ms`, `min_gap_ms`, `min_peak_dbfs`, `envelope_smooth_hz` and
+`threshold_above_local_floor_db`.
+
+`audio_python` receives `x` as float32 samples × channels at the original sample rate, `sr`, absolute sample times
+`t`, the interval bounds `t0` and `t1`, plus `np`, `scipy` and `plt`. Assign a compact value to `result`, and use
+`save_json(name, value)`, `save_csv(name, rows, header=None)` or `save_plot(name)` for detailed artifacts.
+Each call runs in a separate analysis directory. Scientific imports include NumPy, SciPy, Matplotlib, math and
+statistics.
+
+Both tools return measurements and filenames. The model calls `view` to inspect a plot and `bash` to read a table,
+then compares the same time interval with the existing video and ASR tools. Keep `--keep-sandbox` to retain the
+plots, tables and analysis code alongside the logged tool calls. The supplementary `audio_source.mka` is prepared
+on first analysis; `audio_source.json` records its timing. Analysis uses the original source timeline.
+
+The defaults are 12 analysis calls per question, 120 seconds per interval and 90 seconds per CPU worker. Set them
+with `--audio-analysis-calls`, `--audio-analysis-seconds` and `--audio-analysis-timeout`.
+
 <a id="evaluation"></a>
 ## 📊 Evaluation
 
@@ -317,9 +386,11 @@ left off. The first log line for each benchmark tells you how many questions hav
 
 | flag | default | |
 |---|---|---|
-| `--tools` | `bash view watch answer` | omni mode additionally offers `listen_audio`; explicit lists replace defaults |
+| `--tools` | `bash view watch answer` | selects base tools; omni adds `listen_audio` to defaults; audio-math-v1 always adds both analysis tools |
 | `--rules` | none | optional rules |
 | `--agent-mode` | `visual` | `omni` enables the direct-audio agent mode |
+| `--harness-version` | `original` | `audio-math-v1` adds signal analysis and its prompt extension |
+| `--audio-analysis-calls`, `--audio-analysis-seconds`, `--audio-analysis-timeout` | `12`, `120`, `90` | analysis calls per question, seconds per interval and CPU-worker timeout |
 | `--backend` | mode dependent | visual: `vllm`; omni: `gemini`; explicit choices: `vllm`, `hf`, `gemini` |
 | `--model` | backend dependent | local Qwen3.8-27B path/ID, or `gemini-3.8-flash` for Gemini |
 | `--max-listen`, `--listen-seconds` | `4`, `30` | per-question audio calls and maximum duration per call |
@@ -467,6 +538,7 @@ omniharness/
   config.py        paths; AgentConfig (budgets, sampling, tools, rules)
   agent/           loop.py (the agent loop), prompts.py (system prompt and fixed messages)
   tools/           bash.py, view.py, watch.py, answer.py, listen_audio.py; registry and ToolBox
+  audio_math/      signal-analysis runtime, CPU workers and prompt extension
   sandbox/         sandbox.py: per-question work dir and bash runner
   commands/        video.py (vprobe, vsheet, vframes, vcrop), asr.py; bin/ wrappers
   rules/           guard.py (built-in command guard), extra.py (optional rules)
@@ -477,6 +549,7 @@ asr/               build.py (transcripts), slurm/build_asr.sbatch
 infer/             run_single.py, run_bench.py, score.py, slurm/run_bench.sbatch
 scripts/           setup_envs.sh, download_models.sh
 requirements-omni.txt  API inference dependencies, without CUDA/PyTorch/vLLM
+requirements-audio-math.txt  optional CPU signal-analysis dependencies
 assets/            figures for this README
 ```
 

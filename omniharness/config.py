@@ -43,3 +43,7 @@ class AgentConfig:
     agent_mode: str = 'visual'       # visual: V+ASR; omni: optional original-audio observations
     max_listen: int = 4              # original-audio windows; only offered in omni mode
     listen_seconds: float = 30.0     # maximum duration of one audio window
+    harness_version: str = 'original'  # audio-math-v1 adds CPU signal-analysis tools
+    audio_analysis_calls: int = 12
+    audio_analysis_seconds: float = 120.0
+    audio_analysis_timeout: float = 90.0
